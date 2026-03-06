@@ -1,0 +1,1 @@
+{"version":3,"sources":["api.js"],"names":["API_URL"],"mappings":";;AAAA;AACA,IAAMA,OAAO,GAAG,uBAAhB","sourcesContent":["// API\r\nconst API_URL = 'http://localhost:3000';"],"file":"api.dev.js"}
