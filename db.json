@@ -1,228 +1,39 @@
 {
   "clients": [
     {
-      "id": "client_001",
-      "name": "محمد أحمد علي",
-      "phone": "+2010325813322",
-      "nots": "عميل مميز، يحتاج سيارات رياضية.",
-      "createdAt": "2026-02-12T07:10:54.397Z",
-      "updatedAt": "2026-02-12T07:10:54.399Z"
-    },
-    {
-      "id": "client_002",
-      "name": "سارة علي حسين",
-      "phone": "+201234567890",
-      "nots": "طلب سيارة فاخرة."
-    },
-    {
-      "id": "client_003",
-      "name": "حسام مصطفى سالم",
-      "phone": "+201065432189",
-      "nots": "يريد سيارة عائلية اقتصادية.",
-      "updatedAt": "2026-02-15T08:41:15.173Z"
-    },
-    {
-      "id": "client_004",
-      "name": "هالة فريد حسن",
-      "phone": "+202015432789",
-      "nots": "بالبحث عن سيارة كهربائية."
-    },
-    {
-      "id": "client_005",
-      "name": "ياسر عبد الله علي",
-      "phone": "+201071234567",
-      "nots": "عميل مستمر في شراء السيارات."
-    }
-  ],
-  "requests": [
-    {
-      "clientId": "client_001",
-      "title": "BMW 2022",
-      "notes": "يريد سيارة رياضية مميزة.",
-      "status": "pending",
-      "id": "q5pu"
-    },
-    {
-      "clientId": "client_002",
-      "title": "مرسيدس 2021",
-      "notes": "تحتاج إلى نظام ملاحة مدمج.",
-      "status": "pending",
-      "id": "r7xy"
-    },
-    {
-      "clientId": "client_003",
-      "title": "تويوتا كامري 2020",
-      "notes": "يريد سيارة عائلية وموفرة في الوقود.",
-      "status": "pending",
-      "id": "t1cv"
-    },
-    {
-      "clientId": "client_004",
-      "title": "تسلا موديل 3",
-      "notes": "يريد سيارة كهربائية بأفضل التقنيات.",
-      "status": "pending",
-      "id": "x8mf"
-    },
-    {
-      "clientId": "client_005",
-      "title": "فورد موستنج 2022",
-      "notes": "يريد سيارة رياضية سريعة.",
-      "status": "pending",
-      "id": "p9nk"
+      "id": "1774007319848",
+      "name": "Galal Abd El-Baset Galal",
+      "email": "galalabdelbaset28@gmail.com",
+      "phone": "+20 01032581323",
+      "notes": "",
+      "registeredAt": "2026-03-20T11:48:39.848Z",
+      "updatedAt": "2026-03-20T11:48:39.848Z"
     }
   ],
   "cars": [
     {
-      "id": "car_001",
+      "id": "1773958964652",
       "brand": "BMW",
-      "model": "2022",
-      "price": 100000
-    },
-    {
-      "id": "car_002",
-      "brand": "مرسيدس",
-      "model": "2021",
-      "price": 150000
-    },
-    {
-      "id": "car_003",
-      "brand": "تويوتا",
-      "model": "2020",
-      "price": 25000
-    },
-    {
-      "id": "car_004",
-      "brand": "تسلا",
-      "model": "2022",
-      "price": 65000
-    },
-    {
-      "id": "car_005",
-      "brand": "فورد",
-      "model": "2022",
-      "price": 45000
-    },
-    {
-      "id": "car_006",
-      "brand": "أودي",
-      "model": "2019",
-      "price": 70000
-    },
-    {
-      "id": "car_007",
-      "brand": "كيا",
-      "model": "2021",
-      "price": 22000
-    },
-    {
-      "id": "car_008",
-      "brand": "نيسان",
-      "model": "2018",
-      "price": 17000
-    },
-    {
-      "id": "car_009",
-      "brand": "هوندا",
-      "model": "2020",
-      "price": 24000
-    },
-    {
-      "id": "car_010",
-      "brand": "هيونداي",
-      "model": "2021",
-      "price": 30000
+      "model": "Colora",
+      "year": "2011",
+      "condition": "fair",
+      "paint": "blue",
+      "category": "sedan",
+      "price": "750000000",
+      "createdAt": "2026-03-19T22:22:44.652Z"
     }
   ],
-  "matches": [
+  "requests": [
     {
-      "id": "m1",
-      "carId": "car_001",
-      "requestId": "q5pu",
-      "matchScore": 95,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-01-17"
-    },
-    {
-      "id": "m2",
-      "carId": "car_002",
-      "requestId": "r7xy",
-      "matchScore": 90,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-01-23"
-    },
-    {
-      "id": "m3",
-      "carId": "car_003",
-      "requestId": "t1cv",
-      "matchScore": 85,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-01"
-    },
-    {
-      "id": "m4",
-      "carId": "car_004",
-      "requestId": "x8mf",
-      "matchScore": 92,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-05"
-    },
-    {
-      "id": "m5",
-      "carId": "car_005",
-      "requestId": "p9nk",
-      "matchScore": 98,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-10"
-    },
-    {
-      "id": "m6",
-      "carId": "car_006",
-      "requestId": "r7xy",
-      "matchScore": 93,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-11"
-    },
-    {
-      "id": "m7",
-      "carId": "car_007",
-      "requestId": "t1cv",
-      "matchScore": 88,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-13"
-    },
-    {
-      "id": "m8",
-      "carId": "car_008",
-      "requestId": "x8mf",
-      "matchScore": 80,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-15"
-    },
-    {
-      "id": "m9",
-      "carId": "car_009",
-      "requestId": "p9nk",
-      "matchScore": 87,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-17"
-    },
-    {
-      "id": "m10",
-      "carId": "car_010",
-      "requestId": "q5pu",
-      "matchScore": 85,
-      "status": "pending",
-      "contacted": false,
-      "createdAt": "2024-02-20"
+      "id": "1774007283250",
+      "clientId": null,
+      "carId": "1773958964652",
+      "status": "completed",
+      "title": "Request from Galal Abd El-Baset Galal",
+      "clientName": "Galal Abd El-Baset Galal",
+      "carName": "BMW Colora",
+      "notes": "",
+      "createdAt": "2026-03-20T11:48:03.250Z"
     }
   ]
-}
+}   

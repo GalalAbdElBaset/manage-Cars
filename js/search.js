@@ -1,605 +1,390 @@
-// ==================== SEARCH MODULE ====================
+/**
+ * Search Module - Handles all search functionality
+ */
 
-class SearchModule {
-    constructor() {
-        this.initializeSearch();
-        this.bindEvents();
+const SearchModule = (function() {
+    let currentSearchTerm = '';
+    let currentFilters = { type: '', status: '' };
+    let searchResults = [];
+    let cachedData = { clients: [], requests: [], cars: [] };
+    
+    const debouncedSearch = App.debounce(performSearch, 300);
+
+    // ==================== INITIALIZATION ====================
+    function init() {
+        console.log('🔍 Search Module Initialized');
+        bindEvents();
+        loadAllData();
     }
 
-    initializeSearch() {
-        this.currentSearchTerm = '';
-        this.currentFilters = {
-            type: '',
-            status: ''
-        };
-        this.searchResults = [];
-    }
-
-    bindEvents() {
-        // Bind search input events
+    function bindEvents() {
         const searchInput = document.getElementById('search-input');
         if (searchInput) {
-            // Clear search when input is cleared
             searchInput.addEventListener('input', (e) => {
-                if (e.target.value.trim() === '') {
-                    this.performSearch('');
+                const value = e.target.value;
+                if (value === '') {
+                    performSearch('');
                 } else {
-                    this.debouncedSearch(e.target.value);
-                }
-            });
-
-            searchInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.performSearch(e.target.value);
+                    debouncedSearch(value);
                 }
             });
         }
 
-        const searchType = document.getElementById('search-type');
-        const searchStatus = document.getElementById('search-status');
-        const searchSort = document.getElementById('search-sort');
-
-        if (searchType) {
-            searchType.addEventListener('change', () => {
-                this.currentFilters.type = searchType.value;
-                this.performSearch(this.currentSearchTerm);
+        const typeFilter = document.getElementById('search-type');
+        if (typeFilter) {
+            typeFilter.addEventListener('change', (e) => {
+                currentFilters.type = e.target.value;
+                performSearch(currentSearchTerm);
             });
         }
 
-        if (searchStatus) {
-            searchStatus.addEventListener('change', () => {
-                this.currentFilters.status = searchStatus.value;
-                this.performSearch(this.currentSearchTerm);
+        const statusFilter = document.getElementById('search-status');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', (e) => {
+                currentFilters.status = e.target.value;
+                performSearch(currentSearchTerm);
             });
         }
 
-        if (searchSort) {
-            searchSort.addEventListener('change', () => {
-                this.sortResults(searchSort.value);
+        const sortSelect = document.getElementById('search-sort');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                sortResults(e.target.value);
             });
         }
 
-        // Clear filters button
-        const clearFiltersBtn = document.getElementById('clear-search-filters');
-        if (clearFiltersBtn) {
-            clearFiltersBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.clearFilters();
-                this.performSearch(this.currentSearchTerm);
-            });
+        const clearBtn = document.getElementById('clear-search-filters');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', clearFilters);
         }
 
-        // Global click handler for search results
-        document.addEventListener('click', (e) => {
-            // منع السلوك الافتراضي
-            if (e.target.closest('button')) {
-                e.preventDefault();
-            }
-            this.handleResultClick(e);
-        });
+        const resultsContainer = document.getElementById('search-results');
+        if (resultsContainer) {
+            resultsContainer.addEventListener('click', handleResultClick);
+        }
+    }
 
-        // Bind click on search screen to load all data initially
-        document.addEventListener('DOMContentLoaded', () => {
-            const searchTab = document.querySelector('[data-go="search"]');
-            if (searchTab) {
-                searchTab.addEventListener('click', () => {
-                    // Clear any existing search and show all items
-                    setTimeout(() => {
-                        this.performSearch('');
-                    }, 100);
+    // ==================== DATA LOADING ====================
+    async function loadAllData() {
+        showLoading(true);
+        
+        try {
+            const [clients, requests, cars] = await Promise.all([
+                API.getClients().catch(() => []),
+                API.getRequests().catch(() => []),
+                API.getCars().catch(() => [])
+            ]);
+            
+            cachedData = { clients, requests, cars };
+            
+            await performSearch('');
+        } catch (error) {
+            console.error('Error loading data:', error);
+            showEmptyState('Error loading data');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // ==================== SEARCH FUNCTIONALITY ====================
+    async function performSearch(term) {
+        currentSearchTerm = term.trim();
+        
+        try {
+            let allItems = [
+                ...cachedData.clients.map(item => ({ ...item, _type: 'client' })),
+                ...cachedData.requests.map(item => ({ ...item, _type: 'request' })),
+                ...cachedData.cars.map(item => ({ ...item, _type: 'car' }))
+            ];
+            
+            if (currentSearchTerm) {
+                const searchWords = currentSearchTerm.toLowerCase().split(/\s+/);
+                allItems = allItems.filter(item => {
+                    const searchableText = getSearchableText(item).toLowerCase();
+                    return searchWords.every(word => searchableText.includes(word));
                 });
             }
-        });
-    }
-
-    debouncedSearch(term) {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-            this.performSearch(term);
-        }, 300);
-    }
-
-    async performSearch(term) {
-        term = term ? term.trim() : '';
-        this.currentSearchTerm = term;
-
-        // Show loading state
-        this.showLoading(true);
-
-        try {
-            // Fetch all data in parallel
-            const [clients, requests, cars] = await Promise.all([
-                this.fetchClients(),
-                this.fetchRequests(),
-                this.fetchCars()
-            ]);
-
-            // Combine all data with type identifiers
-            const allData = [
-                ...clients.map(item => ({ ...item, _type: 'client' })),
-                ...requests.map(item => ({ ...item, _type: 'request' })),
-                ...cars.map(item => ({ ...item, _type: 'car' }))
-            ];
-
-            // Filter data
-            let filteredData = allData;
-
-            // Apply text search if term exists
-            if (term.length > 0) {
-                filteredData = this.filterByText(allData, term);
+            
+            if (currentFilters.type) {
+                allItems = allItems.filter(item => item._type === currentFilters.type);
             }
-
-            // Apply type filter
-            if (this.currentFilters.type) {
-                filteredData = filteredData.filter(
-                    item => item._type === this.currentFilters.type
+            
+            if (currentFilters.status) {
+                allItems = allItems.filter(item => 
+                    item._type === 'request' && item.status === currentFilters.status
                 );
             }
-
-            // Apply status filter (for requests)
-            if (this.currentFilters.status && this.currentFilters.status !== '') {
-                filteredData = filteredData.filter(item => {
-                    if (item._type === 'request') {
-                        return item.status && item.status.toLowerCase() === this.currentFilters.status.toLowerCase();
-                    }
-                    return true;
-                });
+            
+            searchResults = allItems;
+            updateResultsCount();
+            
+            const sortSelect = document.getElementById('search-sort');
+            if (sortSelect) {
+                sortResults(sortSelect.value, false);
+            } else {
+                displayResults();
             }
-
-            // Store results
-            this.searchResults = filteredData;
-
-            // Sort results
-            this.sortResults(document.getElementById('search-sort')?.value || 'relevance');
-
-            // Display results
-            this.displayResults();
-
         } catch (error) {
             console.error('Search error:', error);
-            this.showEmptyState('Error loading search results. Please try again.');
-        } finally {
-            this.showLoading(false);
+            showEmptyState('An error occurred during search');
         }
     }
 
-    filterByText(data, term) {
-        const searchTerms = term.toLowerCase().split(' ').filter(t => t.length > 0);
-        
-        return data.filter(item => {
-            const searchableText = this.getSearchableText(item).toLowerCase();
-            
-            // Check if ALL search terms are found in the searchable text
-            return searchTerms.every(searchTerm => 
-                searchableText.includes(searchTerm)
-            );
-        });
-    }
-
-    async fetchClients() {
-        try {
-            return getLocalData('clients');
-        } catch (error) {
-            console.error('Error fetching clients:', error);
-            return [];
-        }
-    }
-
-    async fetchRequests() {
-        try {
-            const requests = getLocalData('requests');
-            
-            // Fetch clients to get names for requests
-            const clients = await this.fetchClients();
-            
-            return requests.map(request => {
-                const client = clients.find(c => c.id === request.clientId);
-                return {
-                    ...request,
-                    clientName: client ? client.name : 'Unknown Client',
-                    // Ensure we have all fields needed for search
-                    title: request.title || '',
-                    notes: request.notes || '',
-                    status: request.status || 'active'
-                };
-            });
-        } catch (error) {
-            console.error('Error fetching requests:', error);
-            return [];
-        }
-    }
-
-    async fetchCars() {
-        try {
-            return getLocalData('cars');
-        } catch (error) {
-            console.error('Error fetching cars:', error);
-            return [];
-        }
-    }
-
-    getSearchableText(item) {
+    function getSearchableText(item) {
         switch (item._type) {
             case 'client':
-                return `${item.name || ''} ${item.phone || ''} ${item.nots || ''} ${item.notes || ''}`.toLowerCase();
-            
+                return [item.name, item.phone, item.email, item.notes].filter(Boolean).join(' ');
             case 'request':
-                return `${item.title || ''} ${item.notes || ''} ${item.clientName || ''} ${item.status || ''} ${item.brand || ''} ${item.model || ''}`.toLowerCase();
-            
+                return [item.title, item.notes, item.clientName, item.status].filter(Boolean).join(' ');
             case 'car':
-                return `${item.brand || ''} ${item.model || ''} ${item.year || ''} ${item.condition || ''} ${item.paint || ''} ${item.category || ''} ${item.price || ''}`.toLowerCase();
-            
+                return [item.brand, item.model, item.year, item.condition, item.paint, item.category].filter(Boolean).join(' ');
             default:
                 return '';
         }
     }
 
-    sortResults(sortOption) {
-        if (!this.searchResults.length) return;
-
-        switch (sortOption) {
-            case 'name_asc':
-                this.searchResults.sort((a, b) => {
-                    const nameA = this.getItemName(a).toLowerCase();
-                    const nameB = this.getItemName(b).toLowerCase();
-                    return nameA.localeCompare(nameB);
-                });
-                break;
-
-            case 'name_desc':
-                this.searchResults.sort((a, b) => {
-                    const nameA = this.getItemName(a).toLowerCase();
-                    const nameB = this.getItemName(b).toLowerCase();
-                    return nameB.localeCompare(nameA);
-                });
-                break;
-
-            case 'price_asc':
-                this.searchResults.sort((a, b) => {
-                    if (a._type === 'car' && b._type === 'car') {
-                        return (a.price || 0) - (b.price || 0);
-                    }
-                    return 0;
-                });
-                break;
-
-            case 'price_desc':
-                this.searchResults.sort((a, b) => {
-                    if (a._type === 'car' && b._type === 'car') {
-                        return (b.price || 0) - (a.price || 0);
-                    }
-                    return 0;
-                });
-                break;
-
-            case 'year_new':
-                this.searchResults.sort((a, b) => {
-                    if (a._type === 'car' && b._type === 'car') {
-                        return (b.year || 0) - (a.year || 0);
-                    }
-                    return 0;
-                });
-                break;
-
-            case 'year_old':
-                this.searchResults.sort((a, b) => {
-                    if (a._type === 'car' && b._type === 'car') {
-                        return (a.year || 0) - (b.year || 0);
-                    }
-                    return 0;
-                });
-                break;
-
-            case 'date_new':
-                this.searchResults.sort((a, b) => {
-                    const dateA = new Date(a.createdAt || a.id || 0);
-                    const dateB = new Date(b.createdAt || b.id || 0);
-                    return dateB - dateA;
-                });
-                break;
-
-            case 'date_old':
-                this.searchResults.sort((a, b) => {
-                    const dateA = new Date(a.createdAt || a.id || 0);
-                    const dateB = new Date(b.createdAt || b.id || 0);
-                    return dateA - dateB;
-                });
-                break;
-
-            case 'relevance':
-            default:
-                // Keep relevance-based order
-                break;
-        }
-
-        this.displayResults();
-    }
-
-    getItemName(item) {
-        switch (item._type) {
-            case 'client':
-                return item.name || 'Unnamed Client';
-            case 'request':
-                return item.title || 'Unnamed Request';
-            case 'car':
-                return `${item.brand || ''} ${item.model || ''} (${item.year || ''})`.trim() || 'Unnamed Car';
-            default:
-                return 'Unknown';
-        }
-    }
-
-    displayResults() {
-        const resultsContainer = document.getElementById('search-results');
-        const resultsCount = document.getElementById('search-results-count');
-        
-        if (!resultsContainer || !resultsCount) return;
-
-        if (this.searchResults.length === 0) {
-            if (this.currentSearchTerm || this.currentFilters.type || this.currentFilters.status) {
-                this.showEmptyState('No results found. Try different keywords or filters.');
-            } else {
-                this.showEmptyState('No data available. Add some clients, requests, or cars first.');
+    // ==================== SORTING ====================
+    function sortResults(sortBy, refreshDisplay = true) {
+        const getName = (item) => {
+            switch (item._type) {
+                case 'client': return item.name || '';
+                case 'request': return item.title || '';
+                case 'car': return `${item.brand || ''} ${item.model || ''}`;
+                default: return '';
             }
-            resultsCount.textContent = this.searchResults.length === 0 ? 'No Results' : 'Search Results';
+        };
+
+        switch (sortBy) {
+            case 'name_asc':
+                searchResults.sort((a, b) => getName(a).localeCompare(getName(b)));
+                break;
+            case 'name_desc':
+                searchResults.sort((a, b) => getName(b).localeCompare(getName(a)));
+                break;
+            default:
+                break;
+        }
+
+        displayResults();
+    }
+
+    // ==================== DISPLAY RESULTS ====================
+    function updateResultsCount() {
+        const countElement = document.getElementById('search-results-count');
+        if (countElement) {
+            countElement.textContent = `Search Results (${searchResults.length})`;
+        }
+    }
+
+    function displayResults() {
+        const container = document.getElementById('search-results');
+        if (!container) return;
+
+        if (searchResults.length === 0) {
+            showEmptyState(currentSearchTerm ? 'No results found' : 'Enter search keywords');
             return;
         }
 
-        resultsCount.textContent = `${this.searchResults.length} Result${this.searchResults.length !== 1 ? 's' : ''}`;
-
-        resultsContainer.innerHTML = '';
-
-        // Group results by type for better organization
-        const groupedResults = this.groupResultsByType();
-        
-        Object.keys(groupedResults).forEach(type => {
-            const typeResults = groupedResults[type];
-            
-            // Add type header
-            const typeHeader = document.createElement('div');
-            typeHeader.className = 'search-type-header';
-            typeHeader.innerHTML = `
-                <h4>${this.getTypeDisplayName(type)} (${typeResults.length})</h4>
-            `;
-            resultsContainer.appendChild(typeHeader);
-
-            // Add results for this type
-            typeResults.forEach(item => {
-                const resultElement = this.createResultElement(item);
-                resultsContainer.appendChild(resultElement);
-            });
-        });
-
-        // Add animations
-        setTimeout(() => {
-            const resultItems = resultsContainer.querySelectorAll('.search-result-item');
-            resultItems.forEach((item, index) => {
-                item.style.animationDelay = `${index * 50}ms`;
-                item.classList.add('animate-in');
-            });
-        }, 100);
-    }
-
-    groupResultsByType() {
-        const groups = {
-            client: [],
-            request: [],
-            car: []
+        const grouped = {
+            client: searchResults.filter(item => item._type === 'client'),
+            request: searchResults.filter(item => item._type === 'request'),
+            car: searchResults.filter(item => item._type === 'car')
         };
 
-        this.searchResults.forEach(item => {
-            if (groups[item._type]) {
-                groups[item._type].push(item);
-            }
-        });
+        let html = '';
 
-        // Remove empty groups
-        Object.keys(groups).forEach(type => {
-            if (groups[type].length === 0) {
-                delete groups[type];
-            }
-        });
-
-        return groups;
-    }
-
-    getTypeDisplayName(type) {
-        const typeNames = {
-            client: 'Clients',
-            request: 'Requests',
-            car: 'Cars'
-        };
-        return typeNames[type] || type;
-    }
-
-    createResultElement(item) {
-        const element = document.createElement('div');
-        element.className = `search-result-item search-result-${item._type}`;
-        element.setAttribute('data-type', item._type);
-        element.setAttribute('data-id', item.id);
-
-        let icon, title, subtitle, details, actionText;
-
-        switch (item._type) {
-            case 'client':
-                icon = '<i class="fa-solid fa-user"></i>';
-                title = item.name || 'Unnamed Client';
-                subtitle = item.phone || 'No phone';
-                details = item.nots || item.notes ? 
-                    `<div class="search-result-notes">${item.nots || item.notes}</div>` : '';
-                actionText = 'View Client';
-                break;
-
-            case 'request':
-                const status = item.status || 'active';
-                const statusClass = status === 'completed' ? 'status-closed' : 
-                                 status === 'pending' ? 'status-pending' : 'status-open';
-                icon = '<i class="fa-solid fa-file-lines"></i>';
-                title = item.title || 'Unnamed Request';
-                subtitle = `Client: ${item.clientName || 'Unknown'}`;
-                details = `
-                    <div class="search-result-status">
-                        Status: <span class="status ${statusClass}">${status}</span>
-                    </div>
-                    ${item.notes ? `<div class="search-result-notes">${item.notes}</div>` : ''}
-                `;
-                actionText = 'View Request';
-                break;
-
-            case 'car':
-                icon = '<i class="fa-solid fa-car"></i>';
-                title = `${item.brand || ''} ${item.model || ''} (${item.year || ''})`.trim();
-                subtitle = `${item.price || '0'} EGP`;
-                details = `
-                    <div class="search-result-details">
-                        <span><i class="fa-solid fa-clipboard-list"></i> ${item.condition || 'N/A'}</span>
-                        <span><i class="fa-solid fa-palette"></i> ${item.paint || 'N/A'}</span>
-                        <span><i class="fa-solid fa-tag"></i> ${item.category || 'N/A'}</span>
-                    </div>
-                `;
-                actionText = 'View Car';
-                break;
+        if (grouped.client.length > 0) {
+            html += '<div class="search-type-header"><h4><i class="fa-solid fa-users"></i> Clients (' + grouped.client.length + ')</h4></div>';
+            grouped.client.forEach(item => {
+                html += createClientResult(item);
+            });
         }
 
-        element.innerHTML = `
-            <div class="search-result-icon">${icon}</div>
-            <div class="search-result-content">
-                <div class="search-result-title">${title}</div>
-                <div class="search-result-subtitle">${subtitle}</div>
-                ${details}
-            </div>
-            <div class="search-result-action">
-                <span>${actionText}</span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </div>
-        `;
+        if (grouped.request.length > 0) {
+            html += '<div class="search-type-header"><h4><i class="fa-solid fa-file-lines"></i> Requests (' + grouped.request.length + ')</h4></div>';
+            grouped.request.forEach(item => {
+                html += createRequestResult(item);
+            });
+        }
 
-        return element;
+        if (grouped.car.length > 0) {
+            html += '<div class="search-type-header"><h4><i class="fa-solid fa-car"></i> Cars (' + grouped.car.length + ')</h4></div>';
+            grouped.car.forEach(item => {
+                html += createCarResult(item);
+            });
+        }
+
+        container.innerHTML = html;
     }
 
-    handleResultClick(e) {
+    function createClientResult(item) {
+        return `
+            <div class="search-result-item" data-type="client" data-id="${App.escapeHtml(item.id)}">
+                <div class="search-result-icon"><i class="fa-solid fa-user"></i></div>
+                <div class="search-result-content">
+                    <div class="search-result-title">${App.escapeHtml(item.name || 'Unnamed Client')}</div>
+                    <div class="search-result-subtitle">
+                        <i class="fa-solid fa-phone"></i> ${App.escapeHtml(item.phone || 'No phone number')}
+                    </div>
+                </div>
+                <div class="search-result-action">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </div>
+            </div>
+        `;
+    }
+
+    function createRequestResult(item) {
+        const status = item.status || 'pending';
+        const statusText = status === 'active' ? 'Active' : status === 'pending' ? 'Pending' : 'Completed';
+        
+        return `
+            <div class="search-result-item" data-type="request" data-id="${App.escapeHtml(item.id)}">
+                <div class="search-result-icon"><i class="fa-solid fa-file-lines"></i></div>
+                <div class="search-result-content">
+                    <div class="search-result-title">${App.escapeHtml(item.title || 'Untitled Request')}</div>
+                    <div class="search-result-subtitle">
+                        <i class="fa-solid fa-user"></i> ${App.escapeHtml(item.clientName || 'Unknown')}
+                    </div>
+                    <div class="search-result-status">
+                        <span class="status status-${status}">
+                            <i class="fa-solid ${status === 'active' ? 'fa-play-circle' : status === 'pending' ? 'fa-clock' : 'fa-check-circle'}"></i>
+                            ${statusText}
+                        </span>
+                    </div>
+                </div>
+                <div class="search-result-action">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </div>
+            </div>
+        `;
+    }
+
+    function createCarResult(item) {
+        return `
+            <div class="search-result-item" data-type="car" data-id="${App.escapeHtml(item.id)}">
+                <div class="search-result-icon"><i class="fa-solid fa-car"></i></div>
+                <div class="search-result-content">
+                    <div class="search-result-title">${App.escapeHtml(item.brand || '')} ${App.escapeHtml(item.model || '')} ${App.escapeHtml(item.year || '')}</div>
+                    <div class="search-result-subtitle">
+                        <span><i class="fa-solid fa-tag"></i> ${App.escapeHtml(item.category || 'Not specified')}</span>
+                        <span><i class="fa-solid fa-palette"></i> ${App.escapeHtml(item.paint || 'Not specified')}</span>
+                    </div>
+                    <div class="search-result-notes">
+                        <i class="fa-solid fa-dollar-sign"></i> ${item.price ? App.formatPrice(item.price) : 'Price on request'}
+                    </div>
+                </div>
+                <div class="search-result-action">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </div>
+            </div>
+        `;
+    }
+
+    // ==================== CLICK HANDLER ====================
+    function handleResultClick(e) {
         const resultItem = e.target.closest('.search-result-item');
         if (!resultItem) return;
 
-        const type = resultItem.getAttribute('data-type');
-        const id = resultItem.getAttribute('data-id');
+        const type = resultItem.dataset.type;
+        const id = resultItem.dataset.id;
 
-        switch (type) {
-            case 'client':
-                if (window.viewClientDetails) {
-                    viewClientDetails(id);
-                } else if (window.ClientsModule && window.ClientsModule.viewClientDetails) {
-                    window.ClientsModule.viewClientDetails(id);
-                } else {
-                    showToast('Cannot view client details. Please try again.', 'error');
-                }
-                break;
+        if (!type || !id) return;
 
-            case 'request':
-                if (window.loadRequestDetails) {
-                    loadRequestDetails(id);
-                } else {
-                    showToast('Cannot view request details. Please try again.', 'error');
-                }
-                break;
+        sessionStorage.setItem('viewItem', JSON.stringify({ type, id }));
+        
+        App.showToast(`Loading details...`, 'info', 1000);
+        
+        const page = type === 'client' ? 'index.html' : type === 'request' ? 'requests.html' : 'cars.html';
+        window.location.href = page;
+    }
 
-            case 'car':
-                if (window.showScreen) {
-                    showScreen('cars-list');
-                    
-                    setTimeout(() => {
-                        if (window.showCarDetails) {
-                            showCarDetails(id);
-                        } else {
-                            const showCarDetailsFn = window.showCarDetails || 
-                                                    (window.CarsModule && window.CarsModule.showCarDetails);
-                            
-                            if (showCarDetailsFn) {
-                                showCarDetailsFn(id);
-                            } else {
-                                showToast('Cannot view car details. Function not found.', 'error');
-                                console.error('showCarDetails function not found');
-                            }
-                        }
-                    }, 300);
-                } else {
-                    showToast('Cannot navigate to cars screen', 'error');
-                }
-                break;
+    // ==================== UI STATES ====================
+    function showLoading(show) {
+        const container = document.getElementById('search-results');
+        const countElement = document.getElementById('search-results-count');
+        
+        if (!container) return;
+
+        if (show) {
+            if (countElement) countElement.textContent = 'Searching...';
+            container.innerHTML = `
+                <div class="search-loading">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading data...</p>
+                    </div>
+                </div>
+            `;
         }
     }
 
-    clearFilters() {
-        const searchInput = document.getElementById('search-input');
-        const searchType = document.getElementById('search-type');
-        const searchStatus = document.getElementById('search-status');
-        const searchSort = document.getElementById('search-sort');
+    function showEmptyState(message) {
+        const container = document.getElementById('search-results');
+        const countElement = document.getElementById('search-results-count');
+        
+        if (!container) return;
+        
+        if (countElement) countElement.textContent = 'Search Results (0)';
 
-        if (searchInput) searchInput.value = '';
-        if (searchType) searchType.value = '';
-        if (searchStatus) searchStatus.value = '';
-        if (searchSort) searchSort.value = 'relevance';
-
-        this.currentSearchTerm = '';
-        this.currentFilters = {
-            type: '',
-            status: ''
-        };
-    }
-
-    showEmptyState(message) {
-        const resultsContainer = document.getElementById('search-results');
-        if (!resultsContainer) return;
-
-        resultsContainer.innerHTML = `
+        container.innerHTML = `
             <div class="empty-search-state">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <p>${message}</p>
+                <p>${App.escapeHtml(message)}</p>
             </div>
         `;
     }
 
-    showLoading(show) {
-        const resultsContainer = document.getElementById('search-results');
-        if (!resultsContainer) return;
+    // ==================== FILTERS ====================
+    function clearFilters() {
+        currentFilters = { type: '', status: '' };
+        
+        const typeFilter = document.getElementById('search-type');
+        const statusFilter = document.getElementById('search-status');
+        
+        if (typeFilter) typeFilter.value = '';
+        if (statusFilter) statusFilter.value = '';
+        
+        performSearch(currentSearchTerm);
+        App.showToast('Filters cleared', 'success', 1500);
+    }
 
-        if (show) {
-            const loader = document.createElement('div');
-            loader.className = 'search-loading';
-            loader.innerHTML = `
-                <div class="loading-spinner">
-                    <div class="spinner"></div>
-                    <p>Loading...</p>
-                </div>
-            `;
-            resultsContainer.innerHTML = '';
-            resultsContainer.appendChild(loader);
-        } else {
-            const loader = resultsContainer.querySelector('.search-loading');
-            if (loader) loader.remove();
+    function checkStoredItem() {
+        const stored = sessionStorage.getItem('viewItem');
+        if (stored) {
+            try {
+                const { type, id } = JSON.parse(stored);
+                sessionStorage.removeItem('viewItem');
+                
+                setTimeout(() => {
+                    if (type === 'client' && window.ClientsModule) {
+                        ClientsModule.viewClientDetails(id);
+                    } else if (type === 'request' && window.RequestsModule) {
+                        RequestsModule.loadRequestDetails(id);
+                    } else if (type === 'car' && window.CarsModule) {
+                        CarsModule.viewCarDetails(id);
+                    }
+                }, 300);
+            } catch (e) {
+                console.error('Error parsing stored item:', e);
+            }
         }
     }
 
-    // Helper method to show all data
-    showAllData() {
-        this.currentSearchTerm = '';
-        this.currentFilters = { type: '', status: '' };
-        this.performSearch('');
-    }
-}
+    return {
+        init,
+        refreshData: loadAllData,
+        clearFilters,
+        performSearch,
+        checkStoredItem
+    };
+})();
 
-// Initialize search module when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    window.SearchModule = new SearchModule();
-    
-    // Also initialize when entering search screen
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('[data-go="search"]')) {
-            // Small delay to ensure screen is shown
-            setTimeout(() => {
-                if (window.SearchModule) {
-                    window.SearchModule.showAllData();
-                }
-            }, 100);
-        }
-    });
+window.SearchModule = SearchModule;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('search-screen')) {
+        SearchModule.init();
+        SearchModule.checkStoredItem();
+    }
 });

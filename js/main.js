@@ -1,196 +1,189 @@
-// ==================== MAIN APP ====================
-// ====== grab all the screens and buttons ======
-let screens = document.querySelectorAll('.screen');
-let tabs = document.querySelectorAll('.bottom-nav button');
-let fab = document.querySelector('.fab');
-let toggleMood = document.querySelector('.Mood');
+/**
+ * Main Module - Core application functionality
+ * Handles loader, toast, theme, and utility functions
+ */
 
-// ===== check theme =====
-let currentTheme = localStorage.getItem('theme');
-if (currentTheme === 'dark') {
-    document.body.classList.add('dark');
-    if (toggleMood) {
-        toggleMood.innerHTML = '<i class="fa-solid fa-moon"></i>';
-        toggleMood.style.background = '#a5a2a2';
-        toggleMood.style.color = '#111';
-    }
-} else {
-    if (toggleMood) {
-        toggleMood.innerHTML = '<i class="fa-solid fa-sun"></i>';
-        toggleMood.style.background = '#2563eb';
-        toggleMood.style.color = '#fff';
-    }
-}
-
-// ===== mood toggle click =====
-if (toggleMood) {
-    toggleMood.onclick = function() {
-        if (document.body.classList.contains('dark')) {
-            document.body.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-            toggleMood.innerHTML = '<i class="fa-solid fa-sun"></i>';
-            toggleMood.style.background = '#2563eb';
-            toggleMood.style.color = '#fff';
-        } else {
-            document.body.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-            toggleMood.innerHTML = '<i class="fa-solid fa-moon"></i>';
-            toggleMood.style.background = '#a5a2a2';
-            toggleMood.style.color = '#111';
-        }
-    };
-}
-
-// ===== toast system =====
-function showToast(message, type, duration) {
-    type = type || 'info';
-    duration = duration || 5000;
-
-    let toast = document.getElementById('toast');
-    if (!toast) return;
-
-    let icons = {
-        success: 'fa-circle-check',
-        error: 'fa-circle-xmark',
-        info: 'fa-circle-info'
-    };
-
-    toast.className = ''; 
-    toast.classList.add('show', type);
-
-    toast.innerHTML = `
-        <div class="toast-body">
-            <i class="fa-solid ${icons[type]} toast-icon"></i>
-            <span>${message}</span>
-        </div>
-        <div class="toast-progress">
-            <div class="toast-progress-bar"></div>
-        </div>
-    `;
-
-    let bar = toast.querySelector('.toast-progress-bar');
-    if (bar) {
-        bar.style.animationDuration = duration + 'ms';
-    }
-
-    setTimeout(function() {
-        toast.classList.remove('show');
-    }, duration);
-}
-
-//  screen handling 
-function hideAllScreens() {
-    screens.forEach(function(s) {
-        s.classList.remove('active');
-    });
-}
-
-function showScreen(screenName) {
-    hideAllScreens();
-
-    let screen = document.querySelector('[data-screen="' + screenName + '"]');
-    if (screen) screen.classList.add('active');
-
-    tabs.forEach(function(btn) {
-        if (btn.dataset.go === screenName) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-
-    if (!fab) return;
-    fab.style.display = 'none';
-
-    if (screenName === 'clients-list') {
-        fab.style.display = 'flex';
-        fab.dataset.go = 'add-client';
-        if (typeof loadClients === 'function') {
-            loadClients(); 
-        }
-    } else if (screenName === 'requests-list') {
-        fab.style.display = 'flex';
-        fab.dataset.go = 'add-request';
-        if (typeof loadRequests === 'function') {
-            loadRequests(); 
-        }
-    } else if (screenName === 'add-request') {
-        if (typeof loadClientsForRequest === 'function') {
-            loadClientsForRequest();   
-        }
-    } else if (screenName === 'cars-list') {
-        fab.style.display = 'flex';
-        fab.dataset.go = 'add-car';
-        if (typeof loadCars === 'function') {
-            loadCars();
-        }
-    } else if (screenName === 'add-car') {
-        if (typeof setupAddCarForm === 'function') {
-            setTimeout(() => {
-                setupAddCarForm();
-            }, 100);
-        }
-    } else if (screenName === 'search') {
-        if (typeof initSearchModule === 'function') {
-            setTimeout(() => {
-                window.SearchModule.init();
-            }, 100);
-        }
-    }
-}
-
-//  global click listener 
-document.addEventListener('click', function(e) {
-    if (e.target.closest('button')) {
-        e.preventDefault();
+const App = (function() {
+    // ========== INITIALIZATION ==========
+    function init() {
+        console.log('🚀 App initialized');
+        
+        // Hide loader after 1.5 seconds
+        setTimeout(hideLoader, 1500);
+        
+        // Initialize theme
+        initTheme();
+        
+        // Set active nav link based on current page
+        setActiveNavLink();
     }
     
-    let navBtn = e.target.closest('[data-go]');
-    if (navBtn) {
-        let target = navBtn.dataset.go;
-        showScreen(target);
-        return;
+    function hideLoader() {
+        const loader = document.getElementById('crmLoader');
+        if (!loader) return;
+        
+        loader.classList.add('fade-out');
+        setTimeout(() => {
+            loader.style.display = 'none';
+        }, 500);
     }
-
-    if (e.target.closest('.fab')) {
-        let target = e.target.closest('.fab').dataset.go;
-        if (target) {
-            showScreen(target);
+    
+    function initTheme() {
+        const isDark = localStorage.getItem('darkMode') === 'true';
+        if (isDark) {
+            document.body.classList.add('dark');
+            updateThemeIcon(true);
         }
-        return;
-    }
-});
-
-document.addEventListener('submit', function(e) {
-    e.preventDefault();
-    return false;
-});
-
-document.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        if (e.target.tagName === 'INPUT' && e.target.closest('form')) {
-            e.preventDefault();
+        
+        // Add theme toggle event
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', toggleTheme);
         }
     }
-});
-
-//  first load 
-showScreen('clients-list');
-
-if (typeof loadClients === 'undefined') {
-    window.loadClients = function() {
-        console.log('loadClients function not defined');
+    
+    function updateThemeIcon(isDark) {
+        const icon = document.querySelector('#theme-toggle i');
+        if (!icon) return;
+        
+        if (isDark) {
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+        } else {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
+    }
+    
+    function setActiveNavLink() {
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        document.querySelectorAll('.nav-link').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href === currentPage) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+    }
+    
+    // ========== TOAST NOTIFICATIONS ==========
+    function showToast(message, type = 'info', duration = 3000) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        
+        if (window.toastTimeout) {
+            clearTimeout(window.toastTimeout);
+        }
+        
+        toast.className = `show ${type}`;
+        toast.innerHTML = `
+            <div class="toast-body">
+                <i class="toast-icon fa-solid ${getToastIcon(type)}"></i>
+                <span>${escapeHtml(message)}</span>
+            </div>
+            <div class="toast-progress">
+                <div class="toast-progress-bar" style="animation: progress ${duration}ms linear;"></div>
+            </div>
+        `;
+        
+        window.toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, duration);
+    }
+    
+    function getToastIcon(type) {
+        const icons = {
+            success: 'fa-circle-check',
+            error: 'fa-circle-exclamation',
+            warning: 'fa-triangle-exclamation',
+            info: 'fa-circle-info'
+        };
+        return icons[type] || icons.info;
+    }
+    
+    // ========== SCREEN NAVIGATION (Internal) ==========
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(screen => {
+            screen.style.display = 'none';
+        });
+        
+        const targetScreen = document.getElementById(screenId);
+        if (targetScreen) {
+            targetScreen.style.display = 'block';
+        }
+    }
+    
+    // ========== THEME TOGGLE ==========
+    function toggleTheme() {
+        document.body.classList.toggle('dark');
+        const isDark = document.body.classList.contains('dark');
+        updateThemeIcon(isDark);
+        localStorage.setItem('darkMode', isDark);
+    }
+    
+    // ========== UTILITY FUNCTIONS ==========
+    function escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe
+            .toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    
+    function formatPrice(price) {
+        if (!price) return 'Price on request';
+        const numPrice = parseFloat(price);
+        if (isNaN(numPrice)) return price;
+        
+        return numPrice.toLocaleString('en-US') + ' EGP';
+    }
+    
+    function getInitials(name) {
+        if (!name) return '?';
+        return name
+            .split(' ')
+            .map(word => word[0])
+            .join('')
+            .toUpperCase()
+            .substring(0, 2);
+    }
+    
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+    
+    // ========== PUBLIC API ==========
+    return {
+        init,
+        showScreen,
+        showToast,
+        toggleTheme,
+        escapeHtml,
+        formatPrice,
+        getInitials,
+        debounce
     };
+})();
+
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => App.init());
+} else {
+    App.init();
 }
 
-if (typeof loadRequests === 'undefined') {
-    window.loadRequests = function() {
-        console.log('loadRequests function not defined');
-    };
-}
-
-if (typeof loadClientsForRequest === 'undefined') {
-    window.loadClientsForRequest = function() {
-        console.log('loadClientsForRequest function not defined');
-    };
-}
+// Make App globally available
+window.App = App;
+window.showToast = App.showToast;
+window.showScreen = App.showScreen;
+window.escapeHtml = App.escapeHtml;
+window.formatPrice = App.formatPrice;
+window.getInitials = App.getInitials;

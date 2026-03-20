@@ -1,188 +1,183 @@
 "use strict";
 
-// ==================== MAIN APP ====================
-// ====== grab all the screens and buttons ======
-var screens = document.querySelectorAll('.screen');
-var tabs = document.querySelectorAll('.bottom-nav button');
-var fab = document.querySelector('.fab');
-var toggleMood = document.querySelector('.Mood'); // ===== check theme =====
+/**
+ * Main Module - Core application functionality
+ * Handles loader, toast, theme, and utility functions
+ */
+var App = function () {
+  // ========== INITIALIZATION ==========
+  function init() {
+    console.log('🚀 App initialized'); // Hide loader after 1.5 seconds
 
-var currentTheme = localStorage.getItem('theme');
+    setTimeout(hideLoader, 1500); // Initialize theme
 
-if (currentTheme === 'dark') {
-  document.body.classList.add('dark');
+    initTheme(); // Set active nav link based on current page
 
-  if (toggleMood) {
-    toggleMood.innerHTML = '<i class="fa-solid fa-moon"></i>';
-    toggleMood.style.background = '#a5a2a2';
-    toggleMood.style.color = '#111';
+    setActiveNavLink();
   }
-} else {
-  if (toggleMood) {
-    toggleMood.innerHTML = '<i class="fa-solid fa-sun"></i>';
-    toggleMood.style.background = '#2563eb';
-    toggleMood.style.color = '#fff';
+
+  function hideLoader() {
+    var loader = document.getElementById('crmLoader');
+    if (!loader) return;
+    loader.classList.add('fade-out');
+    setTimeout(function () {
+      loader.style.display = 'none';
+    }, 500);
   }
-} // ===== mood toggle click =====
 
+  function initTheme() {
+    var isDark = localStorage.getItem('darkMode') === 'true';
 
-if (toggleMood) {
-  toggleMood.onclick = function () {
-    if (document.body.classList.contains('dark')) {
-      document.body.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      toggleMood.innerHTML = '<i class="fa-solid fa-sun"></i>';
-      toggleMood.style.background = '#2563eb';
-      toggleMood.style.color = '#fff';
-    } else {
+    if (isDark) {
       document.body.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      toggleMood.innerHTML = '<i class="fa-solid fa-moon"></i>';
-      toggleMood.style.background = '#a5a2a2';
-      toggleMood.style.color = '#111';
+      updateThemeIcon(true);
+    } // Add theme toggle event
+
+
+    var themeToggle = document.getElementById('theme-toggle');
+
+    if (themeToggle) {
+      themeToggle.addEventListener('click', toggleTheme);
     }
-  };
-} // ===== toast system =====
-
-
-function showToast(message, type, duration) {
-  type = type || 'info';
-  duration = duration || 5000;
-  var toast = document.getElementById('toast');
-  if (!toast) return;
-  var icons = {
-    success: 'fa-circle-check',
-    error: 'fa-circle-xmark',
-    info: 'fa-circle-info'
-  };
-  toast.className = '';
-  toast.classList.add('show', type);
-  toast.innerHTML = "\n        <div class=\"toast-body\">\n            <i class=\"fa-solid ".concat(icons[type], " toast-icon\"></i>\n            <span>").concat(message, "</span>\n        </div>\n        <div class=\"toast-progress\">\n            <div class=\"toast-progress-bar\"></div>\n        </div>\n    ");
-  var bar = toast.querySelector('.toast-progress-bar');
-
-  if (bar) {
-    bar.style.animationDuration = duration + 'ms';
   }
 
-  setTimeout(function () {
-    toast.classList.remove('show');
-  }, duration);
-} //  screen handling 
+  function updateThemeIcon(isDark) {
+    var icon = document.querySelector('#theme-toggle i');
+    if (!icon) return;
 
-
-function hideAllScreens() {
-  screens.forEach(function (s) {
-    s.classList.remove('active');
-  });
-}
-
-function showScreen(screenName) {
-  hideAllScreens();
-  var screen = document.querySelector('[data-screen="' + screenName + '"]');
-  if (screen) screen.classList.add('active');
-  tabs.forEach(function (btn) {
-    if (btn.dataset.go === screenName) {
-      btn.classList.add('active');
+    if (isDark) {
+      icon.classList.remove('fa-sun');
+      icon.classList.add('fa-moon');
     } else {
-      btn.classList.remove('active');
+      icon.classList.remove('fa-moon');
+      icon.classList.add('fa-sun');
     }
+  }
+
+  function setActiveNavLink() {
+    var currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav-link').forEach(function (link) {
+      var href = link.getAttribute('href');
+
+      if (href === currentPage) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+  } // ========== TOAST NOTIFICATIONS ==========
+
+
+  function showToast(message) {
+    var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'info';
+    var duration = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 3000;
+    var toast = document.getElementById('toast');
+    if (!toast) return;
+
+    if (window.toastTimeout) {
+      clearTimeout(window.toastTimeout);
+    }
+
+    toast.className = "show ".concat(type);
+    toast.innerHTML = "\n            <div class=\"toast-body\">\n                <i class=\"toast-icon fa-solid ".concat(getToastIcon(type), "\"></i>\n                <span>").concat(escapeHtml(message), "</span>\n            </div>\n            <div class=\"toast-progress\">\n                <div class=\"toast-progress-bar\" style=\"animation: progress ").concat(duration, "ms linear;\"></div>\n            </div>\n        ");
+    window.toastTimeout = setTimeout(function () {
+      toast.classList.remove('show');
+    }, duration);
+  }
+
+  function getToastIcon(type) {
+    var icons = {
+      success: 'fa-circle-check',
+      error: 'fa-circle-exclamation',
+      warning: 'fa-triangle-exclamation',
+      info: 'fa-circle-info'
+    };
+    return icons[type] || icons.info;
+  } // ========== SCREEN NAVIGATION (Internal) ==========
+
+
+  function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(function (screen) {
+      screen.style.display = 'none';
+    });
+    var targetScreen = document.getElementById(screenId);
+
+    if (targetScreen) {
+      targetScreen.style.display = 'block';
+    }
+  } // ========== THEME TOGGLE ==========
+
+
+  function toggleTheme() {
+    document.body.classList.toggle('dark');
+    var isDark = document.body.classList.contains('dark');
+    updateThemeIcon(isDark);
+    localStorage.setItem('darkMode', isDark);
+  } // ========== UTILITY FUNCTIONS ==========
+
+
+  function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+
+  function formatPrice(price) {
+    if (!price) return 'Price on request';
+    var numPrice = parseFloat(price);
+    if (isNaN(numPrice)) return price;
+    return numPrice.toLocaleString('en-US') + ' EGP';
+  }
+
+  function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(function (word) {
+      return word[0];
+    }).join('').toUpperCase().substring(0, 2);
+  }
+
+  function debounce(func, wait) {
+    var timeout;
+    return function () {
+      var _this = this;
+
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      clearTimeout(timeout);
+      timeout = setTimeout(function () {
+        return func.apply(_this, args);
+      }, wait);
+    };
+  } // ========== PUBLIC API ==========
+
+
+  return {
+    init: init,
+    showScreen: showScreen,
+    showToast: showToast,
+    toggleTheme: toggleTheme,
+    escapeHtml: escapeHtml,
+    formatPrice: formatPrice,
+    getInitials: getInitials,
+    debounce: debounce
+  };
+}(); // Initialize on DOM ready
+
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function () {
+    return App.init();
   });
-  if (!fab) return;
-  fab.style.display = 'none';
-
-  if (screenName === 'clients-list') {
-    fab.style.display = 'flex';
-    fab.dataset.go = 'add-client';
-
-    if (typeof loadClients === 'function') {
-      loadClients();
-    }
-  } else if (screenName === 'requests-list') {
-    fab.style.display = 'flex';
-    fab.dataset.go = 'add-request';
-
-    if (typeof loadRequests === 'function') {
-      loadRequests();
-    }
-  } else if (screenName === 'add-request') {
-    if (typeof loadClientsForRequest === 'function') {
-      loadClientsForRequest();
-    }
-  } else if (screenName === 'cars-list') {
-    fab.style.display = 'flex';
-    fab.dataset.go = 'add-car';
-
-    if (typeof loadCars === 'function') {
-      loadCars();
-    }
-  } else if (screenName === 'add-car') {
-    if (typeof setupAddCarForm === 'function') {
-      setTimeout(function () {
-        setupAddCarForm();
-      }, 100);
-    }
-  } else if (screenName === 'search') {
-    if (typeof initSearchModule === 'function') {
-      setTimeout(function () {
-        window.SearchModule.init();
-      }, 100);
-    }
-  }
-} //  global click listener 
+} else {
+  App.init();
+} // Make App globally available
 
 
-document.addEventListener('click', function (e) {
-  if (e.target.closest('button')) {
-    e.preventDefault();
-  }
-
-  var navBtn = e.target.closest('[data-go]');
-
-  if (navBtn) {
-    var target = navBtn.dataset.go;
-    showScreen(target);
-    return;
-  }
-
-  if (e.target.closest('.fab')) {
-    var _target = e.target.closest('.fab').dataset.go;
-
-    if (_target) {
-      showScreen(_target);
-    }
-
-    return;
-  }
-});
-document.addEventListener('submit', function (e) {
-  e.preventDefault();
-  return false;
-});
-document.addEventListener('keypress', function (e) {
-  if (e.key === 'Enter') {
-    if (e.target.tagName === 'INPUT' && e.target.closest('form')) {
-      e.preventDefault();
-    }
-  }
-}); //  first load 
-
-showScreen('clients-list');
-
-if (typeof loadClients === 'undefined') {
-  window.loadClients = function () {
-    console.log('loadClients function not defined');
-  };
-}
-
-if (typeof loadRequests === 'undefined') {
-  window.loadRequests = function () {
-    console.log('loadRequests function not defined');
-  };
-}
-
-if (typeof loadClientsForRequest === 'undefined') {
-  window.loadClientsForRequest = function () {
-    console.log('loadClientsForRequest function not defined');
-  };
-}
+window.App = App;
+window.showToast = App.showToast;
+window.showScreen = App.showScreen;
+window.escapeHtml = App.escapeHtml;
+window.formatPrice = App.formatPrice;
+window.getInitials = App.getInitials;
 //# sourceMappingURL=main.dev.js.map
